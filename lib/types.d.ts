@@ -10,6 +10,10 @@ export interface ILogger {
 }
 export interface ILoggerOption {
     show: boolean;
+    maxPathLength: number;
+    maxFuncNameLength: number;
+    time: string;
+    layout: string;
     exclude?: RegExp[] | string[];
     include?: RegExp[] | string[];
 }
@@ -26,3 +30,12 @@ export declare type ICfg = {
         file: ILoggerOption;
     };
 };
+export interface ILoggerLayoutOpt {
+    name: string;
+    levels: {
+        [name: string]: string;
+    };
+    position: string;
+    timeFmt: string;
+    layout: string;
+}

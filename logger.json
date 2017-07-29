@@ -18,12 +18,15 @@
   },
   "options": {
     "console": {
-      "exclude": [
-        ".*"
-      ],
-      "include": [
-        "^1"
-      ]
+      "maxPathLength": 20,
+      "time": "MM-DD hh:mm:ss",
+      "layout": "[%t] [%l] [%n] [%p]",
+      "maxFuncNameLength": 10
+    }
+  },
+  "options.dev": {
+    "console": {
+      "layout": "[%l] [%n] [%p]"
     }
   }
 }

@@ -53,6 +53,9 @@ Example:
       ]
     }
   }
+  "options.dev":{
+
+  }
 }
 ```
 
@@ -61,10 +64,27 @@ pattern  <a href="https://github.com/nomiddlename/log4js-node/wiki/Date-rolling-
 
 **options**
 
-There are two fields in options at the monent,`console` and `file` represent two types of logger.
+
 
 `exclude` is an array of RegExp string that used to specify which loggers will be excluded (output nothing to console)
+
 `include` is an array of regexp string also and it was used to specify which loggers will be included.
 
 If no `exclude` and `include` fields ,all the log will be output. 
 If a logger's name matchs `exclude` and `include`, it will be included
+
+`maxPathLength` is a number to specify the max path length on the log header. -1 is infinite.
+
+`maxFuncNameLength` is a number to specify the max function name on the log header.
+`time` is a time format ,such as `YYYY-MM-DD hh:mm:ss`
+
+`layout` is a string to describe the log header's layout.
+ + %t - time placeholder
+ + %l - level placeholder
+ + %n - name placeholder
+ + %p - position-info placeholder
+
+ For example, `[%t] [%n] [%p]` will be process to generate `[11:53] [test] [@anonymous -ogger/src/exp.ts:8:3]`
+
+**options.dev**
+`options.dev` has the same structure with `option` which used to overwrite `option.console` if NODE_ENV or B_LOGGER was set to `dev`

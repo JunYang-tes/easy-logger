@@ -1,7 +1,8 @@
 const ansi = require("ansi-styles")
 import * as util from "util"
-import { LoggerFn, ICfg, ILogger } from "./types"
+import { LoggerFn, ICfg, ILogger, ILoggerLayoutOpt, ILoggerOption } from "./types"
 import { configure } from "./config"
+import { getCallerInfo, lengthCut } from "./utils"
 
 function random(min: number, max: number) {
   return Math.random() * (max - min) + min
@@ -19,6 +20,8 @@ function randColor(content: string) {
 }
 let configedLogger: ILogger = null
 let config: ICfg = null
+let fileLoggerCfg: ILoggerOption = null
+let consoleLoggerCfg: ILoggerOption = null
 const namespace: {
   [name: string]: {
     colored: string
@@ -33,6 +36,18 @@ export interface ILoggerCreator {
   }
   logger: ILoggerCreator
 }
+const coloredLevels: any = {
+  DEBUG: `${ansi.cyan.open}DEBUG${ansi.color.close}`,
+  INFO: `${ansi.green.open}INFO ${ansi.color.close}`,
+  WARN: `${ansi.yellow.open}WARN ${ansi.color.close}`,
+  ERROR: `${ansi.red.open}ERROR${ansi.color.close}`,
+}
+const levels: any = {
+  DEBUG: "DEBUG",
+  INFO: "INFO ",
+  WARN: "WARN ",
+  ERROR: "ERROR",
+}
 
 function loggerCreator(name: string): {
   debug: LoggerFn,
@@ -44,6 +59,8 @@ function loggerCreator(name: string): {
     let configed = configure()
     configedLogger = configed.logger
     config = configed.cfg
+    consoleLoggerCfg = config.options.console
+    fileLoggerCfg = config.options.file
   }
 
   let colored = ""
@@ -82,30 +99,41 @@ function loggerCreator(name: string): {
     if (include.some(reg => reg.test(name))) {
       enableConsoleLogger = true
     }
-
-    if (enableConsoleLogger && enableFileLogger) {
-      ret[next] = (message: string, ...args: any[]) => {
-        let msg = util.isString(message) ? message : `${util.inspect(message)}`
-        msg = util.format(msg, ...args)
-        configedLogger.fileLogger[next](msg, name)
-        configedLogger.consoleLogger[next](msg, colored)
-      }
-    } else if (enableConsoleLogger) {
-      ret[next] = (message: string, ...args: any[]) => {
-        let msg = util.isString(message) ? message : `${util.inspect(message)}`
-        msg = util.format(msg, ...args)
-        configedLogger.consoleLogger[next](msg, colored)
-      }
-    } else if (enableFileLogger) {
-      ret[next] = (message: string, ...args: any[]) => {
-        let msg = util.isString(message) ? message : `${util.inspect(message)}`
-        msg = util.format(msg, ...args)
-        configedLogger.fileLogger[next](msg, name)
-      }
-    } else {
-      ret[next] = () => { }
+    let opt: ILoggerLayoutOpt = {
+      name,
+      levels,
+      timeFmt: fileLoggerCfg.time,
+      layout: fileLoggerCfg.layout,
+      position: "",
+    }
+    let opt4console: ILoggerLayoutOpt = {
+      ...opt,
+      levels: coloredLevels,
+      timeFmt: consoleLoggerCfg.time,
+      layout: consoleLoggerCfg.layout,
+      name: colored
     }
 
+    ret[next] = (message: string, ...args: any[]) => {
+      let msg = util.isString(message) ? message : `${util.inspect(message)}`
+      msg = util.format(msg, ...args)
+      let caller = getCallerInfo(2)
+      opt4console.position = "@" +
+        lengthCut(caller.name, consoleLoggerCfg.maxFuncNameLength) + " " +
+        lengthCut(caller.position, consoleLoggerCfg.maxPathLength)
+      opt.position = "@" +
+        lengthCut(caller.name, fileLoggerCfg.maxFuncNameLength) + " " +
+        lengthCut(caller.position, fileLoggerCfg.maxPathLength)
+
+      if (enableConsoleLogger && enableFileLogger) {
+        configedLogger.fileLogger[next](msg, opt)
+        configedLogger.consoleLogger[next](msg, opt4console)
+      } else if (enableConsoleLogger) {
+        configedLogger.consoleLogger[next](msg, opt4console)
+      } else if (enableFileLogger) {
+        configedLogger.fileLogger[next](msg, opt)
+      }
+    }
     return ret
   }, {})
 }

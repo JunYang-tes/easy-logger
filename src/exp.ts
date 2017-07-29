@@ -1,7 +1,6 @@
 import { logger } from "./index"
 
 import { LoggerFn } from "./types"
-
 (() => {
   console.log("test")
   let { debug, error, info, warn } = logger("test")
@@ -18,4 +17,8 @@ import { LoggerFn } from "./types"
   error("test")
   info("test")
   warn("test")
+  function aFunctionWithloooooooooogName() {
+    debug("bala")
+  }
+  aFunctionWithloooooooooogName()
 })()

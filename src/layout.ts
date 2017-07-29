@@ -1,16 +1,16 @@
-const ansi = require("ansi-styles")
+import { ILoggerLayoutOpt } from "./types"
 import * as moment from "moment"
+const ansi = require("ansi-styles")
 
-const colors: any = {
-  DEBUG: `${ansi.cyan.open}[DEBUG]${ansi.color.close}`,
-  INFO: `${ansi.green.open}[INFO ]${ansi.color.close}`,
-  WARN: `${ansi.yellow.open}[WARN ]${ansi.color.close}`,
-  ERROR: `${ansi.red.open}[ERROR]${ansi.color.close}`,
-}
 export function simpleLayout(...arg: any[]) {
   return (layoutEvent: any) => {
-    let level = colors[layoutEvent.level.levelStr]
-    let header = `[${moment(layoutEvent.startTime).format("YYYY-MM-DD hh:mm:ss")}] ${level} [${layoutEvent.data[1]}]`
+    let opt: ILoggerLayoutOpt = layoutEvent.data[1]
+    let level = opt.levels[layoutEvent.level.levelStr]
+    let time = moment(layoutEvent.startTime).format(opt.timeFmt)
+    let header = opt.layout.replace("%t", time) //     `[${time}] ${level} [${opt.name}] [${opt.position}]`
+      .replace("%l", level)
+      .replace("%n", opt.name)
+      .replace("%p", opt.position)
     let lines = layoutEvent.data[0].split("\n")
     if (lines.length === 1) {
       return `${header} - ${lines[0]}`

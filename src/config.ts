@@ -56,12 +56,15 @@ export function configure(cfg?: ICfg): { logger: ILogger, cfg: ICfg } {
   let baseDir = ""
   if (!cfg) {
     let file = ""
-    if (fs.existsSync(`./${defaltConfigFileName}`)) {
-      file = `${process.cwd()}/${defaltConfigFileName}`
-    } else {
-      let [node, entryPoint] = process.argv
-      if (fs.existsSync(`${parse(entryPoint).dir}/${defaltConfigFileName}`)) {
-        file = `${parse(entryPoint).dir}/${defaltConfigFileName}`
+    let paths = [`${process.cwd()}/${defaltConfigFileName}`,
+    `${__dirname}/../${defaltConfigFileName}`]
+
+    let [node, entryPoint] = process.argv
+    paths.push(`${parse(entryPoint).dir}/${defaltConfigFileName}`)
+    for (let p of paths) {
+      if (fs.existsSync(p)) {
+        file = p
+        break
       }
     }
     if (file) {
@@ -71,6 +74,27 @@ export function configure(cfg?: ICfg): { logger: ILogger, cfg: ICfg } {
       } catch (e) {
         console.warn(`Failed to use ${file} as config file`, e)
       }
+    } else {
+      console.warn(`No config loaded,using default.`)
+      cfg = {
+        level: "debug",
+        error: {
+          path: "./log/error.log",
+          fileNamePattern: "-dd"
+        },
+        warn: {
+          path: "./log/warn.log",
+          fileNamePattern: "-dd"
+        },
+        info: {
+          path: "./log/info.log",
+          fileNamePattern: "-dd"
+        },
+        debug: {
+          path: "./log/debug.log",
+          fileNamePattern: "-dd"
+        }
+      } as any
     }
   }
   fixCfg(cfg)
@@ -84,27 +108,66 @@ function withWarn(op: () => any) {
   }
 }
 function fixCfg(cfg: ICfg) {
+  let defaultValue: any = { maxPathLength: -1, show: true, exclude: [], include: [] }
   cfg.options = cfg.options || {} as any
-  let console = cfg.options.console = cfg.options.console || { show: true, exclude: [], include: [] } as any
-  let file = cfg.options.file = cfg.options.file || { show: true, exclude: [], include: [] } as any
-  if (!(console.exclude instanceof Array)) {
-    console.exclude = []
-  }
-  if (!(console.include instanceof Array)) {
-    console.include = []
-  }
-  if (!(file.exclude instanceof Array)) {
-    file.exclude = []
-  }
-  if (!(file.include instanceof Array)) {
-    file.include = []
-  }
+  let consoleOpt = cfg.options.console = cfg.options.console || defaultValue
+  let file = cfg.options.file = cfg.options.file || defaultValue
 
+  type FixCond = (obj: any, field: string) => boolean
+  type Fixer = (obj: any) => (field: string, action: Action) => boolean //return true if do fixed
+  type Action = () => void
+
+  const doOn = (exp: () => boolean, action: Action) => exp() ? (action(), true) : false
+
+  const doFix = (condition: FixCond) =>
+    (obj: any) =>
+      (field: string, action: any) =>
+        doOn(() => condition(obj, field),
+          () => obj[field] = action instanceof Function ? action() : action)
+
+  const fixWithWarn = (fix: Fixer, msg: string) =>
+    (obj: any) =>
+      (field: string, action: any) =>
+        fix(obj)(field, action) && console.warn(`${msg} (${field})`)
+
+  const fixMissingField = doFix((obj, field) => !(field in obj))
+  const fixTypeNotArray =
+    fixWithWarn(
+      doFix((obj, field) => !(obj[field] instanceof Array)),
+      "Need Array"
+    )
+  const fixTypeNotNumber =
+    fixWithWarn(doFix((obj, field) => !(typeof (obj[field]) === "number")), "Need number")
+
+  const fix = (obj: any) => {
+    const fixMyMissingField = fixMissingField(obj)
+    const fixMyTypeNotArray = fixTypeNotArray(obj)
+    const fixMyTypeNotNumber = fixTypeNotNumber(obj)
+
+    fixMyMissingField("include", [])
+    fixMyMissingField("exclude", [])
+    fixMyTypeNotArray("exclude", [])
+    fixMyTypeNotArray("include", [])
+    obj.exclude = create(obj.exclude)
+    obj.include = create(obj.include)
+    fixMyMissingField("maxPathLength", 20)
+    fixMyMissingField("maxFuncNameLength", 10)
+    fixMyTypeNotNumber("maxPathLength", 20)
+    fixMyTypeNotNumber("maxFuncNameLength", 10)
+    fixMyMissingField("time", "YYYY-MM-DD hh:mm:ss")
+    fixMyMissingField("layout", "[%t] [%l] [%n] [%p]")
+  }
   const create = (regs: string[]) => regs.map((reg) => withWarn(() => new RegExp(reg)))
     .filter(i => i)
 
-  console.exclude = create(console.exclude)
-  console.include = create(console.include)
-  file.exclude = create(file.exclude)
-  file.include = create(file.include)
+  if ("options.dev" in cfg &&
+    (process.env.NODE_ENV === "dev" || process.env.B_LOGGER === "dev")) {
+    let devConsoleOpt = (cfg["options.dev"] as any).console || {}
+    cfg.options.console = consoleOpt = {
+      ...consoleOpt,
+      ...devConsoleOpt
+    }
+  }
+  fix(consoleOpt)
+  fix(file)
 }

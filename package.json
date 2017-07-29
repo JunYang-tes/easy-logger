@@ -1,6 +1,6 @@
 {
   "name": "b-logger",
-  "version": "0.0.7",
+  "version": "0.0.13",
   "description": "logger",
   "license": "MIT",
   "repository": "",
@@ -10,7 +10,8 @@
     "colored log"
   ],
   "files": [
-    "lib"
+    "lib",
+    "logger.json"
   ],
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -25,6 +26,7 @@
   },
   "dependencies": {
     "ansi-styles": "^3.1.0",
+    "lib": "^3.0.1",
     "log4js": "^1.1.1",
     "moment": "^2.18.1"
   },
